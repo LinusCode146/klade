@@ -273,7 +273,17 @@ button { font: inherit; cursor: pointer; }
   color: var(--paper);
 }
 .meta > span:first-child { background: rgba(18, 13, 12, 0.78); padding: 2px 8px; }
-.chip { border: 2px solid var(--brass); color: var(--brass); background: rgba(18, 13, 12, 0.85); padding: 2px 8px; }
+.chip {
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  border: 2px solid var(--brass);
+  color: var(--brass);
+  background: rgba(18, 13, 12, 0.85);
+  padding: 4px 10px;
+}
+button.chip:hover:not(:disabled) { background: var(--brass); color: var(--ink); }
+button.chip:disabled { opacity: 0.5; cursor: default; }
 
 /* ---------- play ---------- */
 .hud {
@@ -428,7 +438,18 @@ input:focus { box-shadow: 0 0 0 3px var(--brass); }
   font-size: 12px;
   white-space: pre-wrap;
 }
-.row { display: flex; gap: 8px; justify-content: center; }
+.row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 8px 0;
+  border-top: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+}
+.stats dt { font-family: var(--font-label); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: #6a5038; }
+.stats dd { margin: 2px 0 0; font-family: var(--font-pixel); font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; }
 .card .ghost { color: var(--ink); border-color: var(--ink); }
 
 @media (max-width: 700px) {

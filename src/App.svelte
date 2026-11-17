@@ -4,28 +4,35 @@
   import {
     FLOORS, FACTS, MAX_DEPTH, METRES_PER_PX, FLOOR_TROPHY, floorAt, floorBottom, formatDepth, type Floor,
   } from './game/levels';
-  import { PROMPTS, TIER_POINTS, TIER_LABEL, TIER_EMOJI, MAX_POINTS, judge, type Tier } from './game/prompts';
+  import { loadData, tierFor, type Book, type GameData, type Prompt } from './game/catalog';
+  import { TIER_POINTS, TIER_LABEL, TIER_EMOJI, MAX_POINTS, PROMPTS_PER_DAY, type Tier } from './game/scoring';
+  import {
+    dailyPrompts, practicePrompts, descentNumber, msUntilNext, loadDay, saveDay, stats, type Round, type Stats,
+  } from './game/daily';
   import { spriteDataUrl } from './game/sprites';
+  import BookInput from './components/BookInput.svelte';
 
   const SECONDS = 25;
-  const START_DAY = Date.UTC(2026, 10, 17);
-  const descentNo = Math.max(1, Math.floor((Date.now() - START_DAY) / 86400000) + 1);
+  const day = descentNumber();
 
   type Phase = 'start' | 'play' | 'result';
-  interface Round { title: string; tier: Tier; points: number }
+  type Mode = 'daily' | 'practice';
 
   let canvas: HTMLCanvasElement;
   let world: HTMLDivElement;
   let marker: HTMLDivElement;
-  let input: HTMLInputElement | undefined = $state();
+  let bookInput: BookInput | undefined = $state();
   let scene: Scene;
 
+  let data: GameData | null = $state(null);
+  let loadError = $state(false);
   let phase: Phase = $state('start');
+  let mode: Mode = $state('daily');
+  let prompts: Prompt[] = $state([]);
   let px = $state(4);
   let showHelp = $state(false);
   let qIndex = $state(0);
   let rounds: Round[] = $state([]);
-  let answer = $state('');
   let busy = $state(false);
   let timeLeft = $state(SECONDS);
   let feedback: Round | null = $state(null);
@@ -33,12 +40,17 @@
   let depthLabel = $state('0 m');
   let floorLabel = $state('Street level');
   let copied = $state(false);
+  let today = $state(loadDay(day));
+  let myStats: Stats = $state(stats(day));
+  let countdown = $state('');
 
   const score = $derived(rounds.reduce((s, r) => s + r.points, 0));
-  const finalDepth = $derived((score / MAX_POINTS) * MAX_DEPTH);
+  const depthFor = (points: number) => (points / MAX_POINTS) * MAX_DEPTH;
+  const finalDepth = $derived(depthFor(score));
   const finalFloor = $derived(floorAt(finalDepth));
+  const used = $derived(new Set(rounds.map((r) => r.bookId).filter((id): id is number => id !== null)));
   const shareText = $derived(
-    `DEEP STACKS #${descentNo} 📚 ${formatDepth(finalDepth)} · ${finalFloor.name}\n${rounds.map((r) => TIER_EMOJI[r.tier]).join('')}`,
+    `DEEP STACKS #${day} 📚 ${formatDepth(finalDepth)} · ${finalFloor.name}\n${rounds.map((r) => TIER_EMOJI[r.tier]).join('')}`,
   );
 
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -66,52 +78,86 @@
     const sync = () => (px = scene.px);
     sync();
     addEventListener('resize', sync);
+    loadData().then((d) => (data = d)).catch(() => (loadError = true));
+    const tickCountdown = () => {
+      const ms = msUntilNext();
+      const h = Math.floor(ms / 3_600_000);
+      const m = Math.floor((ms % 3_600_000) / 60_000);
+      const s = Math.floor((ms % 60_000) / 1000);
+      countdown = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    };
+    tickCountdown();
+    const cd = setInterval(tickCountdown, 1000);
     return () => {
       removeEventListener('resize', sync);
       scene.destroy();
       clearInterval(timer);
+      clearInterval(cd);
     };
   });
 
-  async function start() {
+  async function startDaily() {
+    if (!data) return;
+    mode = 'daily';
+    prompts = dailyPrompts(data.prompts, day);
+    rounds = today?.rounds ?? [];
+    qIndex = Math.min(rounds.length, PROMPTS_PER_DAY - 1);
+    scene.focusDig();
+    scene.jumpTo(depthFor(score));
+    if (today?.done) {
+      phase = 'result';
+      return;
+    }
+    phase = 'play';
+    await nextQuestion();
+  }
+
+  async function startPractice() {
+    if (!data) return;
+    mode = 'practice';
+    prompts = practicePrompts(data.prompts);
     rounds = [];
     qIndex = 0;
     scene.reset();
-    depthLabel = '0 m';
-    floorLabel = 'Street level';
-    phase = 'play';
     scene.focusDig();
+    phase = 'play';
     await nextQuestion();
   }
 
   async function nextQuestion() {
-    answer = '';
     feedback = null;
     busy = false;
     timeLeft = SECONDS;
+    depthLabel = formatDepth(scene.depth);
     clearInterval(timer);
     timer = setInterval(() => {
       timeLeft = Math.max(0, timeLeft - 0.1);
-      if (timeLeft <= 0) submit(true);
+      if (timeLeft <= 0) answer(null);
     }, 100);
     await tick();
-    input?.focus();
+    bookInput?.focus();
   }
 
-  function submit(timeout = false) {
+  function answer(book: Book | null) {
     if (busy) return;
     busy = true;
     clearInterval(timer);
-    const res = timeout ? { tier: 0 as Tier, title: "Time's up" } : judge(PROMPTS[qIndex], answer);
-    const round: Round = { title: res.title || '—', tier: res.tier, points: TIER_POINTS[res.tier] };
+    const tier: Tier = book ? tierFor(prompts[qIndex], book) : 0;
+    const round: Round = { bookId: book?.id ?? null, title: book?.title ?? "Time's up", tier, points: TIER_POINTS[tier] };
     rounds = [...rounds, round];
     feedback = round;
+    const done = rounds.length >= PROMPTS_PER_DAY;
     const total = rounds.reduce((s, r) => s + r.points, 0);
-    if (round.points > 0) scene.descendTo((total / MAX_POINTS) * MAX_DEPTH);
+    if (mode === 'daily') {
+      today = { rounds, done, depth: depthFor(total) };
+      saveDay(day, today);
+      if (done) myStats = stats(day);
+    }
+    if (round.points > 0) scene.descendTo(depthFor(total));
     else scene.thud();
     setTimeout(
       () => {
-        if (qIndex + 1 < PROMPTS.length) {
+        if (!done) {
           qIndex++;
           nextQuestion();
         } else {
@@ -123,7 +169,7 @@
     );
   }
 
-  function again() {
+  function backToStreet() {
     phase = 'start';
     scene.reset();
     scene.focusStreet();
@@ -141,6 +187,12 @@
 
   const y = (depth: number) => depth * px;
   const metres = (depth: number) => Math.round(depth * METRES_PER_PX);
+  const startLabel = $derived(
+    !data ? (loadError ? 'Catalogue unavailable' : 'Opening the catalogue …')
+      : today?.done ? "Today's descent ✓"
+      : today?.rounds.length ? '▼ Continue descent ▼'
+      : '▼ Enter the stacks ▼',
+  );
 </script>
 
 <canvas bind:this={canvas} class="scene" aria-hidden="true"></canvas>
@@ -185,20 +237,20 @@
     </button>
     {#if showHelp}
       <div class="help panel">
-        <p>Each prompt has many right answers. The <b>rarer</b> the book you name, the deeper the lift takes you into the library.</p>
-        <p><i>1984</i> gets you past the bestsellers. Virginia Woolf's <i>Flush</i> might take you all the way to the rare books.</p>
-        <p>A perfect descent ends among the scrolls of Alexandria.</p>
+        <p>Each prompt has many right answers. Start typing and pick a book from the catalogue. The <b>rarer</b> the book, the deeper the lift takes you.</p>
+        <p><i>1984</i> gets you past the bestsellers. A book few people would think of takes you to the rare books.</p>
+        <p>Everyone gets the same seven prompts each day. A perfect descent ends among the scrolls of Alexandria.</p>
       </div>
     {/if}
-    <button class="primary" onclick={start}>▼ Enter the stacks ▼</button>
+    <button class="primary" onclick={startDaily} disabled={!data}>{startLabel}</button>
     <div class="meta">
-      <span>Descent #{descentNo}</span>
-      <span class="chip">Prototype</span>
+      <span>Descent #{day}{myStats.streak ? ` · streak ${myStats.streak}` : ''}</span>
+      <button class="chip" onclick={startPractice} disabled={!data}>Practice round</button>
     </div>
   </div>
 {/if}
 
-{#if phase === 'play'}
+{#if phase === 'play' && data}
   <header class="hud">
     <div class="stat">
       <span class="k">Depth</span>
@@ -206,8 +258,8 @@
       <span class="floor">{floorLabel}</span>
     </div>
     <div class="stat center">
-      <span class="k">Prompt</span>
-      <span class="v">{qIndex + 1}/{PROMPTS.length}</span>
+      <span class="k">{mode === 'practice' ? 'Practice' : 'Prompt'}</span>
+      <span class="v">{qIndex + 1}/{PROMPTS_PER_DAY}</span>
     </div>
     <div class="stat right">
       <span class="k">Score</span>
@@ -224,7 +276,7 @@
 
   <section class="question panel" aria-live="polite">
     <div class="timer" style="--t:{timeLeft / SECONDS}"><i></i></div>
-    <p class="prompt">{PROMPTS[qIndex].text}</p>
+    <p class="prompt">{prompts[qIndex].text}</p>
     {#if feedback}
       <p class="feedback tier-{feedback.tier}">
         <span class="ans">{feedback.title}</span>
@@ -232,19 +284,7 @@
         <span class="pts">{feedback.points > 0 ? `+${feedback.points}` : '±0'}</span>
       </p>
     {:else}
-      <form onsubmit={(e) => { e.preventDefault(); submit(); }}>
-        <input
-          bind:this={input}
-          bind:value={answer}
-          placeholder="Name a book …"
-          autocomplete="off"
-          autocapitalize="off"
-          spellcheck="false"
-          disabled={busy}
-          aria-label="Your answer"
-        />
-        <button class="primary small" disabled={busy || !answer.trim()}>Descend</button>
-      </form>
+      <BookInput bind:this={bookInput} books={data.books} {used} disabled={busy} onpick={answer} />
     {/if}
   </section>
 {/if}
@@ -254,7 +294,7 @@
     <article class="card">
       <header class="card-head">
         <span>Deep Stacks Library</span>
-        <span>Descent #{descentNo}</span>
+        <span>{mode === 'practice' ? 'Practice' : `Descent #${day}`}</span>
       </header>
       <img class="trophy" src={spriteDataUrl(FLOOR_TROPHY[finalFloor.style], 7)} alt="" />
       <p class="big">{formatDepth(finalDepth)}</p>
@@ -262,17 +302,30 @@
       <ol class="answers">
         {#each rounds as r, i}
           <li class="tier-{r.tier}">
-            <span class="q">{PROMPTS[i].text}</span>
+            <span class="q">{prompts[i]?.text}</span>
             <span class="a">{r.title}</span>
-            <span class="t">{TIER_EMOJI[r.tier]}</span>
+            <span class="t" title={TIER_LABEL[r.tier]}>{TIER_EMOJI[r.tier]}</span>
           </li>
         {/each}
       </ol>
       <div class="stamp" aria-hidden="true">RETURNED</div>
-      <pre class="share">{shareText}</pre>
+      {#if mode === 'daily'}
+        <dl class="stats">
+          <div><dt>Played</dt><dd>{myStats.played}</dd></div>
+          <div><dt>Streak</dt><dd>{myStats.streak}</dd></div>
+          <div><dt>Deepest</dt><dd>{formatDepth(myStats.bestDepth)}</dd></div>
+          <div><dt>Next descent</dt><dd>{countdown}</dd></div>
+        </dl>
+        <pre class="share">{shareText}</pre>
+      {/if}
       <div class="row">
-        <button class="primary small" onclick={share}>{copied ? 'Copied ✓' : 'Share result'}</button>
-        <button class="ghost small" onclick={again}>Again</button>
+        {#if mode === 'daily'}
+          <button class="primary small" onclick={share}>{copied ? 'Copied ✓' : 'Share result'}</button>
+          <button class="ghost small" onclick={startPractice}>Practice round</button>
+        {:else}
+          <button class="primary small" onclick={startPractice}>Practice again</button>
+          <button class="ghost small" onclick={backToStreet}>Back to the street</button>
+        {/if}
       </div>
     </article>
   </main>

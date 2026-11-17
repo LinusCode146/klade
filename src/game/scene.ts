@@ -737,6 +737,14 @@ export class Scene {
     if (this.reduceMotion) this.depth = target;
   }
 
+  /** Place the lift at a depth without animation (resuming a saved descent) */
+  jumpTo(depth: number) {
+    this.depth = this.from = this.to = Math.max(0, Math.min(MAX_DEPTH, depth));
+    this.t = 1;
+    this.floorIndex = depth > 0 ? FLOORS.indexOf(floorAt(this.depth + 1)) : -1;
+    this.camY = this.camTarget = this.atStreet ? this.streetCam() : this.digCam(this.depth);
+  }
+
   reset() {
     this.depth = this.from = this.to = 0;
     this.t = 1;

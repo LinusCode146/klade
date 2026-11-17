@@ -30,8 +30,10 @@ Spielsprache: **Englisch**.
 ## 2. Wertung & Seltenheit
 
 - Tiefe = Summe der Seltenheitspunkte, linear auf die Tiefe der Bibliothek (~480 m) abgebildet.
-- **Seltenheit, Phase A (ohne Backend):** Schätzwert aus Bekanntheit:
-  Anzahl Ausgaben/Bewertungen (Open Library), Wikipedia-Seitenaufrufe, Sprachversionen.
+- **Seltenheit, Phase A (ohne Backend, umgesetzt):** Anzahl der Wikipedia-Sprachversionen
+  eines Buchs (Wikidata-Sitelinks): ≥ 30 common, 12–29 uncommon, 5–11 rare, < 5 very rare
+  (z. B. *1984* 138, *Klara and the Sun* 18, *Lajja* 10, *Fifteen Dogs* 4).
+  Später ergänzt um Open-Library-Lesezahlen.
 - **Seltenheit, Phase B (mit Backend):** echte Antwortverteilung aller Spieler pro Tag.
 - Stufen: common · uncommon · rare · very rare (10 / 25 / 55 / 100 Punkte).
 - Falsche Antwort oder Zeit abgelaufen: 0 Punkte, ein Buch fällt auf den Aufzug.
@@ -86,8 +88,12 @@ Durch die Mitte läuft der Aufzugsschacht.
 
 - **Buchkatalog** (~5.000–10.000 Werke): Titel, Alternativtitel, Autor, Jahr,
   Bekanntheit. Quellen: Wikidata, Open Library.
-- **Fragen** werden kuratiert. Gültige Antwortmengen werden per Wikidata-Abfrage
-  (z. B. „Autor hat Pseudonym“, „Titel enthält Zahl“) vorgeschlagen und von Hand geprüft.
+- **Fragen** (`scripts/prompt-defs.mjs`) haben eine Regel, aus der die Antwortmenge
+  automatisch entsteht: Muster im Titel (Zahl, Farbe, Tier …), Erscheinungsjahr oder eine
+  Wikidata-Abfrage (Pseudonym, Insel als Schauplatz, Nobelpreis, verfilmt, Originalsprache).
+  Dazu kommen handverlesene Ergänzungen, Ausschlüsse und reine Handlisten (verboten, Hund …).
+- Pipeline: `npm run data:fetch` (Wikidata, zwischengespeichert) → `npm run data:build`
+  (schreibt `public/data/catalog.json` und `prompts.json`).
 - Seite „Rulings“ für strittige Fälle (Zählt eine Kurzgeschichte? Ein Theaterstück?).
 
 ## 5. Technik
@@ -99,7 +105,7 @@ Durch die Mitte läuft der Aufzugsschacht.
 ## 6. Phasen
 
 1. **Grafik-Prototyp** ✅ (umgebaut auf die Bibliothek)
-2. **Spielkern:** Autovervollständigung, robuste Titelprüfung, Tagesrätsel, Spielstand & Serie
+2. **Spielkern** ✅ Autovervollständigung über den Katalog (mit Tippfehler-Toleranz), Tagesrätsel, Spielstand & Serie, Übungsrunden
 3. **Daten-Pipeline:** Buchkatalog, Fragen-Werkzeug, 30 Tagesrätsel vorab
 4. **Finale Pixel-Art:** Sprites, Logo, Animationen
 5. **Teilen & Feinschliff:** Bild teilen, Archiv, Statistik, Barrierefreiheit
