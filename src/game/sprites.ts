@@ -1,214 +1,319 @@
-// Handgezeichnete Pixel-Sprites als Zeichen-Raster. '.' = transparent.
-import type { SpriteName } from './strata';
+// Hand-drawn pixel sprites as character grids. '.' = transparent.
+import type { DecorName, TrophyName } from './levels';
 
 type Palette = Record<string, string>;
-
-const FOSSIL: Palette = { a: '#3b2a1e', b: '#c9a679', c: '#ead2a6', d: '#8a6a48' };
-
 interface SpriteDef { rows: string[]; pal: Palette }
 
-const DEFS: Record<SpriteName | 'digger' | 'bucket' | 'tent' | 'flag', SpriteDef> = {
-  worm: { pal: { a: '#d98b8b', b: '#b86a6f' }, rows: ['.aab..', 'a..baa'] },
-  tusk: {
-    pal: FOSSIL,
+const WOOD: Palette = { a: '#2a1a10', b: '#7a4f2e', c: '#a8723f', d: '#c99a5a' };
+
+const DEFS: Record<DecorName | TrophyName | 'librarian' | 'cat' | 'lamppost', SpriteDef> = {
+  // ---- figures ----
+  librarian: {
+    pal: { h: '#3a2418', s: '#f0c39a', g: '#1e1410', c: '#8a2f3a', C: '#6a2230', p: '#2e2a3a', d: '#1e1410', w: '#efe2c4', b: '#3d6b8a' },
     rows: [
-      'aaa...........',
-      'acba..........',
-      '.abbaa........',
-      '..abbbaaa...aa',
-      '...aabbbbaaaba',
-      '.....aaabbbba.',
-      '........aaaa..',
+      '.hhhh...',
+      'hhhhhh..',
+      'hssssh..',
+      'hgsgsh..',
+      '.ssss...',
+      '..ss....',
+      '.cccc...',
+      'cccccbb.',
+      'cCcccbbw',
+      'sCcccbb.',
+      '.cccc...',
+      '.pppp...',
+      '.p..p...',
+      '.p..p...',
+      'dd..dd..',
     ],
   },
-  bone: {
-    pal: FOSSIL,
+  cat: {
+    pal: { a: '#1e1a1c', e: '#e8c84a' },
     rows: [
-      '.aa......aa.',
-      'acba....abba',
-      '.abbbbbbbba.',
-      '.abbbbbbbda.',
-      'abba....abda',
-      '.aa......aa.',
+      'a.a.....',
+      'aaa.....',
+      'eae....a',
+      'aaaaaaa.',
+      '.aaaaaa.',
+      '.a.a.aa.',
     ],
   },
-  skull: {
-    pal: FOSSIL,
+  lamppost: {
+    pal: { a: '#2a2a30', l: '#ffd98a', L: '#f2b04a' },
     rows: [
-      '..aaaaaaaa......',
-      '.acccbbbbbaaa...',
-      'abaabbbbbbbbbaa.',
-      'abaabbbbbbbbbbba',
-      'abbbbbbbbbbbbbda',
-      '.abbbbbaaaaaaaa.',
-      '.abbdba.cacacac.',
-      '..aaaa.aaaaaaaa.',
+      '.aaa.',
+      'alLla',
+      'alLla',
+      '.aaa.',
+      '..a..',
+      ...Array(26).fill('..a..'),
+      '.aaa.',
     ],
   },
-  ammonite: {
-    pal: FOSSIL,
+  // ---- decor ----
+  lamp: {
+    pal: { a: '#2a1a10', s: '#e8c46a', S: '#c99a3a', p: '#5a3a1e' },
     rows: [
-      '...aaaaa...',
-      '.aacbbbbaa.',
-      '.abbaaabba.',
-      'abbabbbabba',
-      'abbabaababa',
-      'abbababbaba',
-      'abdabaaabba',
-      '.abdabbbba.',
-      '.aadbaaaaa.',
-      '...aaaa....',
+      '.sss.',
+      'sSsSs',
+      'sssss',
+      '..p..',
+      ...Array(11).fill('..p..'),
+      '.ppp.',
+      'aaaaa',
     ],
   },
-  fern: {
-    pal: { a: '#4a3a2a', b: '#7d6a4a' },
+  plant: {
+    pal: { g: '#4f8a4a', G: '#3a6a3a', p: '#b8623a', P: '#8a4a2a' },
     rows: [
-      '...a...',
-      '..aba..',
-      '.a.a.a.',
-      '..aba..',
-      'a..a..a',
-      '.abbba.',
-      '...a...',
-      'ab.a.ba',
-      '..aba..',
-      '...a...',
-      '...a...',
+      '...g.g...',
+      '.g.gGg.g.',
+      'gGgGgGgGg',
+      '.gGgGgGg.',
+      'gGg.G.gGg',
+      '...gGg...',
+      '..ppppp..',
+      '..pPPPp..',
+      '...ppp...',
+      '...PPP...',
     ],
   },
-  dragonfly: {
-    pal: { a: '#2e2a26', b: '#77736d' },
-    rows: [
-      '.bbb.a.bbb.',
-      'bbbbbabbbbb',
-      '.bbb.a.bbb.',
-      '.....a.....',
-      '.....a.....',
-      '.....a.....',
-      '.....a.....',
-    ],
+  ladder: {
+    pal: WOOD,
+    rows: Array.from({ length: 44 }, (_, i) => (i % 5 === 0 ? 'bccccccb' : 'b......b')),
   },
-  fish: {
-    pal: FOSSIL,
+  globe: {
+    pal: { o: '#3d6b8a', g: '#5a8a4a', b: '#b8862e', a: '#3a2a1a' },
     rows: [
-      '....aaaa....',
-      '..aaccbbaa.a',
-      '.acabbbbbbaa',
-      'abbbbbdbbbba',
-      '.abbbbbbbbaa',
-      '..aabbbbaa.a',
-      '....aaaa....',
-    ],
-  },
-  trilobite: {
-    pal: FOSSIL,
-    rows: [
-      '..aaaaa..',
-      '.abcccba.',
-      'abcbbbcba',
-      'abbaaabba',
-      '.abbbbba.',
-      'aabdbdbaa',
-      '.abbbbba.',
-      'aabdbdbaa',
-      '.abbbbba.',
-      '..abbba..',
+      '..bbbbb..',
+      '.boogoob.',
+      'boggoooob',
+      'boogggoob',
+      'booogoogb',
+      '.boooogb.',
+      '..bbbbb..',
+      '....a....',
+      '....a....',
       '...aaa...',
+      '..a.a.a..',
+      '.a..a..a.',
     ],
   },
-  stromatolite: {
-    pal: { a: '#2a2422', b: '#8b7d6b', c: '#b3a58f' },
+  reader: {
+    pal: { a: '#2a2c30', b: '#6a737a', c: '#a8b2b8', s: '#bfe0d8', w: '#5a3a1e' },
     rows: [
-      '....aaaa....',
-      '..aabbbbaa..',
-      '.abccccccba.',
+      '..aaaaaaaa....',
+      '..abbbbbba....',
+      '..absssssba...',
+      '..absssssba...',
+      '..abbbbbba....',
+      '...aaccaa.....',
+      '..aaaaaaaaa...',
+      'wwwwwwwwwwwwww',
+      '.w..........w.',
+      '.w..........w.',
+      '.w..........w.',
+      '.w..........w.',
+    ],
+  },
+  catalog: {
+    pal: { a: '#2a1a10', b: '#8a5a32', c: '#a8723f', k: '#d8a94a' },
+    rows: [
+      'aaaaaaaaaaaaaa',
+      'abbbbbbbbbbbba',
+      'acckcckcckccka',
+      'abbbbbbbbbbbba',
+      'acckcckcckccka',
+      'abbbbbbbbbbbba',
+      'acckcckcckccka',
+      'abbbbbbbbbbbba',
+      'acckcckcckccka',
+      'aaaaaaaaaaaaaa',
+      '.a..........a.',
+      '.a..........a.',
+    ],
+  },
+  case: {
+    pal: { a: '#2a1a10', b: '#5a3a1e', g: '#cfe4e8', G: '#a8c8d0', p: '#efe2c4', r: '#7a2a2a' },
+    rows: [
+      'aaaaaaaaaaaaaaaaaa',
+      'agggggggggggggggGa',
+      'agGggggggggggggGga',
+      'aggggrppppprgggg.a',
+      'agggrpppppppprggga',
+      'aaaaaaaaaaaaaaaaaa',
+      'abbbbbbbbbbbbbbbba',
+      'ab..............ba',
+      'ab..............ba',
+      'ab..............ba',
+      'abbbbbbbbbbbbbbbba',
+      'a.a............a.a',
+    ],
+  },
+  cobweb: {
+    pal: { w: '#c8c2b8' },
+    rows: [
+      'wwwwwwwwww',
+      'w.w..w..w.',
+      'ww.w.w.w..',
+      'w.www.w...',
+      'w..wwww...',
+      'w.w.ww....',
+      'ww..w.....',
+      'w.ww......',
+      'ww........',
+      'w.........',
+    ],
+  },
+  candle: {
+    pal: { f: '#ffd25a', F: '#ff8a2a', w: '#efe2c4', W: '#cfc2a4', b: '#b8862e' },
+    rows: ['.f.', 'fFf', '.F.', 'wwW', 'wwW', 'wwW', 'wwW', 'bbb'],
+  },
+  lectern: {
+    pal: WOOD,
+    rows: [
+      'aaaaaaaaaa',
+      'acccccccca',
+      '.addddda..',
+      '..abbba...',
+      '...aba....',
+      '...aba....',
+      '...aba....',
+      '...aba....',
+      '...aba....',
+      '...aba....',
+      '..abbba...',
+      '.aaaaaaa..',
+    ],
+  },
+  pile: {
+    pal: { a: '#1e1410', r: '#6a2a22', g: '#3a4a32', b: '#2a3a4a', y: '#8a6a32', w: '#cfc2a4' },
+    rows: [
+      '....aaaaaa....',
+      '...arrrrrra...',
+      '..aaaaaaaaaa..',
+      '..agggggggwa..',
+      '.aaaaaaaaaaaa.',
+      '.abbbbbbbbbwa.',
+      '..aaaaaaaaaa..',
+      '..ayyyyyyyya..',
+      '.aaaaaaaaaaaa.',
+      'arrrrrrrrrrrwa',
+      'aaaaaaaaaaaaaa',
+    ],
+  },
+  torch: {
+    pal: { f: '#ffd25a', F: '#ff8a2a', r: '#c2401a', a: '#3a2a1a', b: '#6a4a2a' },
+    rows: ['.f.f', 'fFff', 'FrFf', '.Fr.', 'aaaa', '.ba.', '.ba.', '.ba.', '.ba.', 'aaa.'],
+  },
+  amphora: {
+    pal: { a: '#5a2a14', b: '#b8623a', c: '#d98a52', k: '#2a1a10' },
+    rows: [
+      '..aaa..',
+      '..aba..',
+      '.a.b.a.',
+      '.abbba.',
+      'abcbbba',
+      'abkkkba',
+      'abcbbba',
+      'abbbbba',
+      '.abbba.',
+      '..aba..',
+      '..aaa..',
+    ],
+  },
+  sign: {
+    pal: { a: '#2a1a10', r: '#a8322a', w: '#efe2c4' },
+    rows: [
+      'aaaaaaaaaaaaaaa',
+      'arrrrrrrrrrrrra',
+      'arwwwwwwwwwwwra',
+      'arrrrrrrrrrrrra',
+      'arrwwwwwwwwwrra',
+      'aaaaaaaaaaaaaaa',
+    ],
+  },
+  // ---- trophies ----
+  book: {
+    pal: { a: '#1e1410', r: '#b8432e', R: '#8a2f22', w: '#efe2c4', y: '#f2c14e' },
+    rows: [
+      'aaaaaaaaaa',
+      'aRrrrrrrra',
+      'aRryyyyyra',
+      'aRrrrrrrra',
+      'aRrywwyrra',
+      'aRrrrrrrra',
+      'aRrrrrrrra',
+      'aRrrrrrrra',
+      'aRryyyyyra',
+      'aRrrrrrrra',
+      'aRwwwwwwwa',
+      'aaaaaaaaaa',
+    ],
+  },
+  magazine: {
+    pal: { a: '#1e1410', b: '#3d6b8a', w: '#efe2c4', y: '#f2c14e', r: '#d9663a' },
+    rows: [
+      'aaaaaaaaaa',
+      'awwwwwwwwa',
+      'aryyyyyyra',
+      'awwwwwwwwa',
+      'abbbbbbbba',
+      'abbwwwbbba',
+      'abwwwwwbba',
+      'abbwwwbbba',
+      'abbbbbbbba',
+      'awyywyywwa',
+      'aaaaaaaaaa',
+    ],
+  },
+  box: {
+    pal: { a: '#3a2a1a', b: '#c4a06a', c: '#a8844e', w: '#efe2c4' },
+    rows: [
+      'aaaaaaaaaaaaaa',
+      'acccccccccccca',
+      'aaaaaaaaaaaaaa',
+      'abbbbbbbbbbbba',
+      'abbbwwwwwbbbba',
+      'abbbwaawwbbbba',
+      'abbbwwwwwbbbba',
+      'abbbbbbbbbbbba',
+      'abbbbbbbbbbbba',
+      'aaaaaaaaaaaaaa',
+    ],
+  },
+  tome: {
+    pal: { a: '#1e1410', b: '#5a1e1e', c: '#7a2a2a', g: '#d8a94a', p: '#efe2c4' },
+    rows: [
+      'aaaaaaaaaaaa',
       'abbbbbbbbbba',
-      'acccccccccca',
+      'abggggggggba',
+      'abgccccccgba',
+      'abgcggggcgba',
+      'abgcgccgcgag',
+      'abgcgccgcgag',
+      'abgcggggcgba',
+      'abgccccccgba',
+      'abggggggggba',
       'abbbbbbbbbba',
-      'acccccccccca',
+      'appppppppppa',
       'aaaaaaaaaaaa',
     ],
   },
-  crinoid: {
-    pal: FOSSIL,
+  scroll: {
+    pal: { a: '#3a2a1a', p: '#efe2c4', P: '#d8c8a0', w: '#8a5a32', r: '#a8322a' },
     rows: [
-      'a.a.a.a',
-      '.ababa.',
-      'a.bcb.a',
-      '.abbba.',
-      '..aba..',
-      '...a...',
-      '..aba..',
-      '...a...',
-      '..aba..',
-      '...a...',
-      '..aba..',
-    ],
-  },
-  // Paläontologin mit Spaten, Blick nach rechts
-  digger: {
-    pal: { k: '#c9a15a', h: '#8a6a32', s: '#f0c39a', e: '#2b1d14', g: '#5d7a3a', G: '#465e2b', p: '#4a3a2a', d: '#2b1d14', w: '#8a5a32', m: '#a9b0b4' },
-    rows: [
-      '..kkkkk.....',
-      '.kkkkkkk....',
-      'hhhhhhhhh...',
-      '..sssss.....',
-      '..ssesse....',
-      '..sssss.....',
-      '...sss....w.',
-      '.ggggggg..w.',
-      'gggggggggsw.',
-      'gsgggggG..w.',
-      'gsgggggG..w.',
-      '.ggggggg..w.',
-      '..pp.pp...w.',
-      '..pp.pp..mmm',
-      '..pp.pp..mmm',
-      '.ddd.ddd..m.',
-    ],
-  },
-  bucket: {
-    pal: { a: '#2a2c30', b: '#7c848c', c: '#aab2b8' },
-    rows: [
-      'aaaaaaaa',
-      'abccccba',
-      'abbbbbba',
-      'abcbbbba',
-      '.abbbba.',
-      '.abcbba.',
-      '..abba..',
-      '...aa...',
-    ],
-  },
-  tent: {
-    pal: { a: '#5a2a18', b: '#d9663a', c: '#b44e2a', d: '#3a1e12' },
-    rows: [
-      '.........a.........',
-      '........aba........',
-      '.......abbca.......',
-      '......abbbcca......',
-      '.....abbbbccca.....',
-      '....abbbbbdccca....',
-      '...abbbbbdddccca...',
-      '..abbbbbbdddcccca..',
-      '.abbbbbbddddccccca.',
-      'aaaaaaaaaaaaaaaaaaa',
-    ],
-  },
-  flag: {
-    pal: { a: '#3b2a1e', y: '#f2c14e', o: '#d9903a' },
-    rows: [
-      'ayyyyy',
-      'ayyoyy',
-      'ayoooy',
-      'ayyyyy',
-      'a.....',
-      'a.....',
-      'a.....',
-      'a.....',
-      'a.....',
-      'a.....',
-      'a.....',
+      '.aa..........aa.',
+      'awwa........awwa',
+      'apPaaaaaaaaaaPpa',
+      'apPppppppppppPpa',
+      'apPpPPPPPPPppPpa',
+      'apPrrppppppppPpa',
+      'apPppppppppppPpa',
+      'apPaaaaaaaaaaPpa',
+      'awwa........awwa',
+      '.aa..........aa.',
     ],
   },
 };
@@ -238,7 +343,7 @@ export function sprite(name: AnySprite): HTMLCanvasElement {
   return c;
 }
 
-/** Sprite als hochskalierte Data-URL, z. B. für das Fundstück im Ergebnis */
+/** Upscaled data URL, e.g. for the keepsake on the result card */
 export function spriteDataUrl(name: AnySprite, scale = 6): string {
   const s = sprite(name);
   const c = document.createElement('canvas');
@@ -248,4 +353,25 @@ export function spriteDataUrl(name: AnySprite, scale = 6): string {
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(s, 0, 0, c.width, c.height);
   return c.toDataURL();
+}
+
+// 3×5 pixel font for signs in the scene
+const GLYPHS: Record<string, string[]> = {
+  B: ['11.', '1.1', '11.', '1.1', '11.'],
+  O: ['.1.', '1.1', '1.1', '1.1', '.1.'],
+  K: ['1.1', '1.1', '11.', '1.1', '1.1'],
+  S: ['.11', '1..', '.1.', '..1', '11.'],
+  P: ['11.', '1.1', '11.', '1..', '1..'],
+  E: ['111', '1..', '11.', '1..', '111'],
+  N: ['1.1', '111', '111', '1.1', '1.1'],
+};
+
+export function pixelText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string) {
+  ctx.fillStyle = color;
+  let cx = x;
+  for (const ch of text) {
+    const g = GLYPHS[ch];
+    if (g) g.forEach((row, gy) => [...row].forEach((v, gx) => v === '1' && ctx.fillRect(cx + gx, y + gy, 1, 1)));
+    cx += 4;
+  }
 }

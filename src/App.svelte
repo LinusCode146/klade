@@ -2,17 +2,17 @@
   import { onMount, tick } from 'svelte';
   import { Scene } from './game/scene';
   import {
-    ERAS, FACTS, MAX_DEPTH, ERA_TROPHY, ageToDepth, depthToAge, eraAtAge, formatAge, type Era,
-  } from './game/strata';
+    FLOORS, FACTS, MAX_DEPTH, METRES_PER_PX, FLOOR_TROPHY, floorAt, floorBottom, formatDepth, type Floor,
+  } from './game/levels';
   import { PROMPTS, TIER_POINTS, TIER_LABEL, TIER_EMOJI, MAX_POINTS, judge, type Tier } from './game/prompts';
   import { spriteDataUrl } from './game/sprites';
 
   const SECONDS = 25;
   const START_DAY = Date.UTC(2026, 10, 17);
-  const digNo = Math.max(1, Math.floor((Date.now() - START_DAY) / 86400000) + 1);
+  const descentNo = Math.max(1, Math.floor((Date.now() - START_DAY) / 86400000) + 1);
 
   type Phase = 'start' | 'play' | 'result';
-  interface Round { answer: string; tier: Tier; points: number }
+  interface Round { title: string; tier: Tier; points: number }
 
   let canvas: HTMLCanvasElement;
   let world: HTMLDivElement;
@@ -22,7 +22,6 @@
 
   let phase: Phase = $state('start');
   let px = $state(4);
-  let skyH = $state(210);
   let showHelp = $state(false);
   let qIndex = $state(0);
   let rounds: Round[] = $state([]);
@@ -30,16 +29,16 @@
   let busy = $state(false);
   let timeLeft = $state(SECONDS);
   let feedback: Round | null = $state(null);
-  let banner: Era | null = $state(null);
-  let depthLabel = $state('heute');
-  let eraLabel = $state('Oberfläche');
+  let banner: Floor | null = $state(null);
+  let depthLabel = $state('0 m');
+  let floorLabel = $state('Street level');
   let copied = $state(false);
 
   const score = $derived(rounds.reduce((s, r) => s + r.points, 0));
-  const finalAge = $derived(depthToAge((score / MAX_POINTS) * MAX_DEPTH));
-  const finalEra = $derived(eraAtAge(finalAge));
+  const finalDepth = $derived((score / MAX_POINTS) * MAX_DEPTH);
+  const finalFloor = $derived(floorAt(finalDepth));
   const shareText = $derived(
-    `KLADE #${digNo} ⛏️ ${formatAge(finalAge)} · ${finalEra.name}\n${rounds.map((r) => TIER_EMOJI[r.tier]).join('')}`,
+    `DEEP STACKS #${descentNo} 📚 ${formatDepth(finalDepth)} · ${finalFloor.name}\n${rounds.map((r) => TIER_EMOJI[r.tier]).join('')}`,
   );
 
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -47,28 +46,24 @@
 
   onMount(() => {
     scene = new Scene(canvas, {
-      onFrame: (camY, drillY) => {
+      onFrame: (camY, depth) => {
         world.style.transform = `translate3d(0, ${Math.round(-camY) * px}px, 0)`;
-        marker.style.top = `${Math.round(drillY) * px}px`;
+        marker.style.top = `${Math.round(depth) * px}px`;
         if (phase === 'play') {
-          const age = depthToAge(drillY);
-          const lbl = drillY <= 5 ? 'heute' : formatAge(age);
+          const lbl = formatDepth(depth);
           if (lbl !== depthLabel) depthLabel = lbl;
-          const en = drillY <= 5 ? 'Oberfläche' : eraAtAge(age).name;
-          if (en !== eraLabel) eraLabel = en;
+          const f = depth < 1 ? 'Street level' : `${floorAt(depth).code} · ${floorAt(depth).name}`;
+          if (f !== floorLabel) floorLabel = f;
         }
       },
-      onEraEnter: (era) => {
-        if (phase !== 'play') return;
-        banner = era;
+      onFloorEnter: (floor) => {
+        if (phase !== 'play' || floor === FLOORS[0]) return;
+        banner = floor;
         clearTimeout(bannerTimeout);
         bannerTimeout = setTimeout(() => (banner = null), 2200);
       },
     });
-    const sync = () => {
-      px = scene.px;
-      skyH = scene.skyH;
-    };
+    const sync = () => (px = scene.px);
     sync();
     addEventListener('resize', sync);
     return () => {
@@ -82,8 +77,8 @@
     rounds = [];
     qIndex = 0;
     scene.reset();
-    depthLabel = 'heute';
-    eraLabel = 'Oberfläche';
+    depthLabel = '0 m';
+    floorLabel = 'Street level';
     phase = 'play';
     scene.focusDig();
     await nextQuestion();
@@ -107,13 +102,12 @@
     if (busy) return;
     busy = true;
     clearInterval(timer);
-    const prompt = PROMPTS[qIndex];
-    const res = timeout ? { tier: 0 as Tier, canonical: 'Zeit abgelaufen' } : judge(prompt, answer);
-    const round: Round = { answer: res.canonical || '—', tier: res.tier, points: TIER_POINTS[res.tier] };
+    const res = timeout ? { tier: 0 as Tier, title: "Time's up" } : judge(PROMPTS[qIndex], answer);
+    const round: Round = { title: res.title || '—', tier: res.tier, points: TIER_POINTS[res.tier] };
     rounds = [...rounds, round];
     feedback = round;
     const total = rounds.reduce((s, r) => s + r.points, 0);
-    if (round.points > 0) scene.digTo((total / MAX_POINTS) * MAX_DEPTH);
+    if (round.points > 0) scene.descendTo((total / MAX_POINTS) * MAX_DEPTH);
     else scene.thud();
     setTimeout(
       () => {
@@ -132,7 +126,7 @@
   function again() {
     phase = 'start';
     scene.reset();
-    scene.focusSky();
+    scene.focusStreet();
   }
 
   async function share() {
@@ -141,69 +135,65 @@
       copied = true;
       setTimeout(() => (copied = false), 1600);
     } catch {
-      /* Zwischenablage nicht verfügbar */
+      /* clipboard unavailable */
     }
   }
 
-  const depthPx = (age: number) => ageToDepth(age) * px;
+  const y = (depth: number) => depth * px;
+  const metres = (depth: number) => Math.round(depth * METRES_PER_PX);
 </script>
 
 <canvas bind:this={canvas} class="scene" aria-hidden="true"></canvas>
 
-<!-- Ebene, die mit der Kamera mitscrollt: Zeitalter, Fakten, Skala -->
+<!-- Layer that scrolls with the camera: floor names, facts, ruler -->
 <div class="world" class:at-start={phase === 'start'} bind:this={world} aria-hidden="true">
-  {#each ERAS as era, i}
-    {#if i > 0}
-      <div class="era-name" style="top:{depthPx(era.end) + 8}px">
-        {era.name}
-        <small>{formatAge(era.start)} – {formatAge(era.end)}</small>
-      </div>
-    {/if}
+  {#each FLOORS as floor}
+    <div class="floor-name" style="top:{y(floor.top) + 12}px">
+      <b>{floor.code}</b> {floor.name}
+    </div>
   {/each}
 
   {#each FACTS as f, i}
-    <div class="fact" class:major={f.major} class:right={i % 2 === 1} style="top:{depthPx(f.age)}px">
+    <div class="fact" class:major={f.major} class:left={i % 2 === 1} style="top:{y(f.depth)}px">
       {#if i % 2 === 1}<span>{f.text}</span><i></i>{:else}<i></i><span>{f.text}</span>{/if}
     </div>
   {/each}
 
   <div class="ruler">
     <div class="track" style="height:{(MAX_DEPTH + 60) * px}px"></div>
-    {#each ERAS as era}
+    {#each FLOORS as floor}
       <div
         class="seg"
-        style="top:{depthPx(era.end)}px; height:{depthPx(era.start) - depthPx(era.end)}px; background:{era.base}"
+        style="top:{y(floor.top)}px; height:{y(floorBottom(floor) - floor.top)}px; background:{floor.accent}"
       ></div>
-      <div class="tick" style="top:{depthPx(era.start)}px">
-        {era.start >= 1000 ? (era.start / 1000).toLocaleString('de-DE') + ' Mrd' : Math.round(era.start)}
-      </div>
+      <div class="tick" style="top:{y(floor.top)}px">{floor.code}</div>
     {/each}
-    <div class="tick" style="top:0">0</div>
+    <div class="tick" style="top:{y(MAX_DEPTH)}px">{metres(MAX_DEPTH)} m</div>
   </div>
   <div class="marker" class:hidden={phase === 'start'} bind:this={marker}><span>◀</span></div>
 </div>
 
 {#if phase === 'start'}
   <main class="start">
-    <h1 class="logo" aria-label="Klade">KLADE</h1>
-    <p class="sub">die tägliche Grabung</p>
-    <p class="tagline">7 Fragen · 25 Sekunden · seltenere Antworten graben tiefer</p>
+    <h1 class="logo" aria-label="Deep Stacks"><span>DEEP</span><span>STACKS</span></h1>
+    <p class="sub">the daily descent</p>
+    <p class="tagline">7 prompts · 25 seconds each · rarer books go deeper</p>
   </main>
   <div class="start-actions">
     <button class="link" onclick={() => (showHelp = !showHelp)} aria-expanded={showHelp}>
-      {showHelp ? '▼' : '▶'} so wird gespielt
+      {showHelp ? '▼' : '▶'} how to play
     </button>
     {#if showHelp}
       <div class="help panel">
-        <p>Zu jeder Frage gibt es viele richtige Antworten. Je <b>seltener</b> deine Antwort, desto tiefer gräbst du dich durch die Erdgeschichte.</p>
-        <p>Ein Delfin bringt dich ein Stück weit. Mit der Vaquita landest du vielleicht bei den Dinosauriern.</p>
-        <p>Eine perfekte Grabung endet dort, wo die Erde entstanden ist: vor 4,57 Mrd. Jahren.</p>
+        <p>Each prompt has many right answers. The <b>rarer</b> the book you name, the deeper the lift takes you into the library.</p>
+        <p><i>1984</i> gets you past the bestsellers. Virginia Woolf's <i>Flush</i> might take you all the way to the rare books.</p>
+        <p>A perfect descent ends among the scrolls of Alexandria.</p>
       </div>
     {/if}
-    <button class="primary" onclick={start}>▼ Grabung starten ▼</button>
+    <button class="primary" onclick={start}>▼ Enter the stacks ▼</button>
     <div class="meta">
-      <span>Grabung #{digNo}</span>
-      <span class="chip">Prototyp</span>
+      <span>Descent #{descentNo}</span>
+      <span class="chip">Prototype</span>
     </div>
   </div>
 {/if}
@@ -211,24 +201,24 @@
 {#if phase === 'play'}
   <header class="hud">
     <div class="stat">
-      <span class="k">Tiefe</span>
+      <span class="k">Depth</span>
       <span class="v">{depthLabel}</span>
-      <span class="era">{eraLabel}</span>
+      <span class="floor">{floorLabel}</span>
     </div>
     <div class="stat center">
-      <span class="k">Frage</span>
+      <span class="k">Prompt</span>
       <span class="v">{qIndex + 1}/{PROMPTS.length}</span>
     </div>
     <div class="stat right">
-      <span class="k">Punkte</span>
+      <span class="k">Score</span>
       <span class="v">{score}</span>
     </div>
   </header>
 
   {#if banner}
     <div class="banner" role="status">
-      <span>▼ {banner.name}</span>
-      <small>{formatAge(banner.start)} – {formatAge(banner.end)}</small>
+      <small>▼ {banner.code}</small>
+      <span>{banner.name}</span>
     </div>
   {/if}
 
@@ -237,7 +227,7 @@
     <p class="prompt">{PROMPTS[qIndex].text}</p>
     {#if feedback}
       <p class="feedback tier-{feedback.tier}">
-        <span class="ans">{feedback.answer}</span>
+        <span class="ans">{feedback.title}</span>
         <span class="lbl">{TIER_LABEL[feedback.tier]}</span>
         <span class="pts">{feedback.points > 0 ? `+${feedback.points}` : '±0'}</span>
       </p>
@@ -246,14 +236,14 @@
         <input
           bind:this={input}
           bind:value={answer}
-          placeholder="Tier eingeben …"
+          placeholder="Name a book …"
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
           disabled={busy}
-          aria-label="Deine Antwort"
+          aria-label="Your answer"
         />
-        <button class="primary small" disabled={busy || !answer.trim()}>Graben</button>
+        <button class="primary small" disabled={busy || !answer.trim()}>Descend</button>
       </form>
     {/if}
   </section>
@@ -261,24 +251,28 @@
 
 {#if phase === 'result'}
   <main class="result">
-    <article class="card panel">
-      <p class="label-top">Fundstück · Grabung #{digNo}</p>
-      <img class="trophy" src={spriteDataUrl(ERA_TROPHY[finalEra.name], 8)} alt="" />
-      <p class="big">{formatAge(finalAge)}</p>
-      <p class="era-res">{finalEra.name}</p>
+    <article class="card">
+      <header class="card-head">
+        <span>Deep Stacks Library</span>
+        <span>Descent #{descentNo}</span>
+      </header>
+      <img class="trophy" src={spriteDataUrl(FLOOR_TROPHY[finalFloor.style], 7)} alt="" />
+      <p class="big">{formatDepth(finalDepth)}</p>
+      <p class="floor-res">{finalFloor.code} · {finalFloor.name}</p>
       <ol class="answers">
         {#each rounds as r, i}
           <li class="tier-{r.tier}">
-            <span class="q">{PROMPTS[i].text.replace('Nenne ', '')}</span>
-            <span class="a">{r.answer}</span>
+            <span class="q">{PROMPTS[i].text}</span>
+            <span class="a">{r.title}</span>
             <span class="t">{TIER_EMOJI[r.tier]}</span>
           </li>
         {/each}
       </ol>
+      <div class="stamp" aria-hidden="true">RETURNED</div>
       <pre class="share">{shareText}</pre>
       <div class="row">
-        <button class="primary small" onclick={share}>{copied ? 'Kopiert ✓' : 'Ergebnis teilen'}</button>
-        <button class="ghost small" onclick={again}>Nochmal</button>
+        <button class="primary small" onclick={share}>{copied ? 'Copied ✓' : 'Share result'}</button>
+        <button class="ghost small" onclick={again}>Again</button>
       </div>
     </article>
   </main>

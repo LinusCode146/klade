@@ -1,25 +1,25 @@
-# Klade – die tägliche Grabung
+# Deep Stacks – the daily descent
 
-Ein tägliches Browser-Quiz über Tiere: 7 Fragen, 25 Sekunden pro Frage,
-und **seltenere Antworten graben tiefer** durch die Erdgeschichte –
-vom Mutterboden bis zur glühenden jungen Erde vor 4,57 Mrd. Jahren.
+A daily browser quiz about books: 7 prompts, 25 seconds each, and
+**rarer books go deeper** – a brass lift carries you from the Bestseller Hall
+down through eleven floors of a vast library to the scrolls of Alexandria.
 
-Aktueller Stand: **Grafik-Prototyp** (Phase 1 aus [PLAN.md](PLAN.md)).
-Die Fragen und Seltenheitsstufen sind von Hand geschätzte Beispieldaten.
+Current state: **graphics prototype** (see [PLAN.md](PLAN.md), in German).
+Prompts and rarity tiers are hand-estimated sample data.
 
-## Entwicklung
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-Weitere Befehle: `npm run build`, `npm run check`.
+Also: `npm run build`, `npm run check`.
 
-## Aufbau
+## Layout
 
-- `src/game/scene.ts` – Canvas-Szene: Himmel, Grabungsplatz, prozeduraler Gesteins-Querschnitt, Kamera, Partikel
-- `src/game/strata.ts` – Erdzeitalter, Zeit→Tiefe-Abbildung, Fakten, Fossil-Positionen
-- `src/game/sprites.ts` – handgezeichnete Pixel-Sprites als Zeichen-Raster
-- `src/game/prompts.ts` – Beispiel-Fragen mit Seltenheitsstufen, Antwortprüfung
-- `src/App.svelte` – Startbildschirm, HUD, Fragen, Ergebnis
+- `src/game/scene.ts` – canvas scene: street with bookshop, procedural library cross-section, lift, camera, particles
+- `src/game/levels.ts` – floors, depth scale, facts, decor placement
+- `src/game/sprites.ts` – hand-drawn pixel sprites as character grids, tiny pixel font
+- `src/game/prompts.ts` – sample prompts with rarity tiers, answer matching
+- `src/App.svelte` – start screen, HUD, prompts, result card
